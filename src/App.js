@@ -1,23 +1,40 @@
 import { useState } from 'react'
-
+import {  Link, Route, Routes, useMatch, Navigate  } from 'react-router-dom'
+import { useField } from './hooks'
 const Menu = () => {
   const padding = {
     paddingRight: 5
   }
   return (
     <div>
-      <a href='#' style={padding}>anecdotes</a>
-      <a href='#' style={padding}>create new</a>
-      <a href='#' style={padding}>about</a>
+      <Link style={padding} to={'/'}>anecdotes</Link>
+      <Link style={padding} to={'/create'}>create new</Link>
+      <Link style={padding} to={'/about'}>about</Link>
     </div>
   )
 }
+
+const Anecdote = ({anecdote}) => (
+	<div>
+		<h2>{anecdote.content}</h2>
+		<h4>by {anecdote.author} has {anecdote.votes} votes</h4>
+	</div>
+)
+
 
 const AnecdoteList = ({ anecdotes }) => (
   <div>
     <h2>Anecdotes</h2>
     <ul>
-      {anecdotes.map(anecdote => <li key={anecdote.id} >{anecdote.content}</li>)}
+      {anecdotes.map(anecdote => 
+			
+			<li key={anecdote.id} >
+				<Link to={`anecdote/${anecdote.id}`}>
+				{anecdote.content}
+				</Link>
+			</li>
+			)
+			}
     </ul>
   </div>
 )
@@ -44,43 +61,67 @@ const Footer = () => (
   </div>
 )
 
+const Input = (props) => {
+	const {reset, ...others} = props.object
+	return(
+		<div>
+		{props.text}
+		<input {...others}/> 
+		</div>
+	)
+}
+
 const CreateNew = (props) => {
-  const [content, setContent] = useState('')
-  const [author, setAuthor] = useState('')
-  const [info, setInfo] = useState('')
+  const content = useField('content')
+  const author = useField('author')
+  const info = useField('info')
+	const [toHome, setToHome] = useState(false)
 
-
+	const handleReset = (e) => {
+		e.preventDefault()
+		content.reset()
+		author.reset()
+		info.reset()
+	} 
   const handleSubmit = (e) => {
     e.preventDefault()
     props.addNew({
-      content,
-      author,
-      info,
+      content: content.value,
+      author: author.value,
+      info: info.value,
       votes: 0
     })
+		setToHome(true)
+		props.setNotification(content.value)
+		setTimeout(() => props.setNotification(''), 5000)
   }
+	if (toHome) {
+		return <Navigate to='/'/>
+	}
 
   return (
     <div>
       <h2>create a new anecdote</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          content
-          <input name='content' value={content} onChange={(e) => setContent(e.target.value)} />
-        </div>
-        <div>
-          author
-          <input name='author' value={author} onChange={(e) => setAuthor(e.target.value)} />
-        </div>
-        <div>
-          url for more info
-          <input name='info' value={info} onChange={(e)=> setInfo(e.target.value)} />
-        </div>
-        <button>create</button>
+      <form  onSubmit={handleSubmit}>
+        
+        <Input text={'content'} object={content}/>
+        <Input text={'author'} object={author}/>
+        <Input text={'info or url'} object={info}/>
+        <button type='submit'>create</button>
+				<button onClick={handleReset}>reset</button>
+				
       </form>
     </div>
   )
 
+}
+
+const Notification = (props) => {
+	if (props.message) {
+		return (
+		<p>a new notification {props.message} created </p>
+	)
+}
 }
 
 const App = () => {
@@ -121,14 +162,22 @@ const App = () => {
 
     setAnecdotes(anecdotes.map(a => a.id === id ? voted : a))
   }
-
+	const match = useMatch('/anecdote/:id')
+	const anecdote = match ? 
+		anecdotes.find( a => a.id === Number(match.params.id))
+		:null
   return (
     <div>
       <h1>Software anecdotes</h1>
-      <Menu />
-      <AnecdoteList anecdotes={anecdotes} />
-      <About />
-      <CreateNew addNew={addNew} />
+			<Menu />
+			<Notification message = {notification}/>
+			<Routes>
+				<Route path='/anecdote/:id' element={<Anecdote anecdote={anecdote}/>}></Route>
+				<Route path='/' element={<AnecdoteList anecdotes={anecdotes} />}></Route>
+				<Route path='/create' element={<CreateNew addNew={addNew} setNotification={setNotification}/>}></Route>
+				<Route path='/about' element={<About/>}></Route>
+			</Routes>
+      <br></br>
       <Footer />
     </div>
   )
